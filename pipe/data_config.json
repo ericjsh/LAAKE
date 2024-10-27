@@ -1,0 +1,33 @@
+{
+  "_comment" : "File exentions within dirname, before process (bp), mid process (mp), after process (ap)." ,
+  "image" : {
+    "dirname" : "image",
+    "bp_extensions" : [".resamp.fits.fz"],
+    "mp_extensions" : [".resamp.fits.fz", ".segment.fits.fz", ".reasamp.cat"],
+    "ap_extensions" : [".resamp.fitz.fz" , ".segment.fits.fz"] 
+  },
+  "ampmap" : {
+    "dirname" : "ampmap",
+    "bp_extensions" : [".head"],
+    "mp_extensions" : [".head", ".ampmap.fits.fz"],
+    "ap_extensions" : [".head", ".ampmap.fits.fz"]
+  },
+  "initial_cat" : {
+    "dirname" : "initial_cat",
+    "bp_extensions" : [],
+    "mp_extensions" : [".resamp.cat"],
+    "ap_extensions" : [".resamp.cat"]
+  },
+  "dist_cat" : {
+    "dirname" : "initial_cat",
+    "bp_extensions" : [],
+    "mp_extensions" : [".resamp.cat"],
+    "ap_extensions" : [".resamp.cat"]
+  },
+  "delmag_cat" : {
+    "dirname" : "delmag_cat",
+    "bp_extensions" : [],
+    "mp_extensions" : [".delmag.cat"],
+    "ap_extensions" : [".delmag.cat"]
+  }
+}

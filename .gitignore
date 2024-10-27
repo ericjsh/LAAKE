@@ -1,0 +1,20 @@
+# python cache
+__pycache__/
+
+# data
+data/*
+data/image/*
+datafile/*
+
+!datafile/sex_files/
+!datafile/swarp_files/
+!datafile/sex_files/*
+!datafile/swarp_files/*
+
+# MacOS
+.DS_Store
+
+delmag_p1.cat
+delmag_p3.cat
+stars_check
+*.csv
