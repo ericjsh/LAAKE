@@ -1,9 +1,9 @@
-from pipe import process_tools
-from pipe.dataprocess_config import *
+#from pipe import process_tools
+#from pipe.dataprocess_config import *
 
-import os
+#import os
+__version__ = "1.1.0"
 
-VERSION = "1.0.0"
 __all__ = [
     "ampmap",
     "astrom_check",
