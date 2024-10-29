@@ -52,11 +52,11 @@ class DelmagCalculator :
         OUTPUT : APASS reference catalogue
         '''
         
-        sID_bad_vis_path = os.path.join(DATFDIRC, 'bad_star_N55_2018.csv')
-        sID_bad_vis = [i[0] for i in ascii.read(sID_bad_vis_path)]
+        #sID_bad_vis_path = os.path.join(DATFDIRC, 'bad_star_N55_2018.csv')
+        #sID_bad_vis = [i[0] for i in ascii.read(sID_bad_vis_path)]
 
         if aps_only == True :
-            aps_stcat_path = os.path.join(DATFDIRC, 'apass_dr10_N55_good.txt')
+            aps_stcat_path = os.path.join(DATFDIRC, f'apass_dr10_{self.field}_good.txt')
             
             dtype2 = np.dtype([ 
                 ('sID', 'U5'), 
@@ -98,8 +98,8 @@ class DelmagCalculator :
             aps_stcat_tab = ascii.read(aps_stcat_path)
             
             if self.IDcut == 'none' :
-                result = aps_stcat_tab[np.where(np.isin(aps_stcat_tab['sID'], sID_bad_vis) == False)]
-                #result = aps_stcat_tab
+                #result = aps_stcat_tab[np.where(np.isin(aps_stcat_tab['sID'], sID_bad_vis) == False)]
+                result = aps_stcat_tab
                 
             else :
                 #IDcut_final = [i for i in self.IDcut if i not in sID_bad_vis]
