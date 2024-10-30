@@ -1,12 +1,3 @@
-        =============================================================
-             __           ____       ____     __   ___   ________
-            |  |         /    \     /    \   |  | /  /  |   _____|
-            |  |        /  /\  \   /  /\  \  |  |/  /   |  |_____
-            |  |       |  /__\  | |  /__\  | |      \   |   _____|
-            |  |_____  |   __   | |   __   | |  |\   \  |  |_____
-            |________| |__|  |__| |__|  |__| |__| \___\ |________|
-            Lightcurve  Assembly Architecture for KAMP   Extracts
-        =============================================================
 ![logo](docs/LAAKE_emblem.png)
 # LAAKE
 
@@ -21,7 +12,7 @@ You must have working installations for:
 - [SCAMP](https://www.astromatic.net/software/scamp/) (Bertin 2006): AstrOmatic SW for astrometric and photometric calibration.
 - [fpack](https://heasarc.gsfc.nasa.gov/fitsio/fpack/) (Pence et al. 2010): Compressing FITS images.
 
-Install the latest development version:
+Install the latest development version of LAAKE :
 ```
 git clone https://github.com/ericjsh/LAAKE.git
 ```
@@ -57,5 +48,6 @@ conda activate LAAKE
         > example command: python laake.py -r
 ```
 
+## Aditional Information
 
 Visit Notion webpage (https://congruous-value-af8.notion.site/LAAKE-12c48de1964b80e09902ce791bc1d833) for tutorial on running data process and/or reading output files
