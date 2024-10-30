@@ -5,13 +5,14 @@ channels:
   - astropy
 dependencies:
   - pip
-  - python>=3.8
+  - python=3.8
   - Pandoc
   - pip:
       - astropy
       - scipy
       - tqdm
       - astroquery
-      - lumpy
+      - numpy
       - pandas
+      - statsmodels
 
