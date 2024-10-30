@@ -7,7 +7,7 @@
             |________| |__|  |__| |__|  |__| |__| \___\ |________|
             Lightcurve  Assembly Architecture for KAMP   Extracts
         =============================================================
-
+![logo](docs/LAAKE_logo.png)
 # LAAKE
 
 Lightcurve Assembly Architecture for KAMP Extracts (LAAKE) is a AstrOmatic powered and python based data processing pipeline specifically designed for KMTNet AGN Monitoring Program (KAMP), which utilizes Korea Microlensing Telescope Network (KMTNet) to generate light curves of 500+ AGNs (Active Galactic Nuclei) in the Southern Hemisphere. 
