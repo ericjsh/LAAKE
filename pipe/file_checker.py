@@ -5,6 +5,8 @@ from pipe import process_tools
 from pipe import starcand
 from pipe import kmtn_refcat
 
+from shutil import copy, move
+
 
 #INPUTVAR = ['N55', '2018', 'CTIO', 'V']
 
@@ -28,12 +30,12 @@ class CheckFiles :
         '''
         ready2run = True
 
-        jdlist_fname = f'JD_{self.field}_{self.year}.list'
-        jdlist_fpath = os.path.join(DATFDIRC, jdlist_fname)
+        self.jdlist_fname = f'JD_{self.field}_{self.year}.list'
+        jdlist_fpath = os.path.join(DATFDIRC, self.jdlist_fname)
         if not os.path.isfile(jdlist_fpath) :
             #print(f'{jdlist_fname} is missing!')
             ready2run = False
-            self.missing_files.append(jdlist_fname)
+            self.missing_files.append(self.jdlist_fname)
 
 
         self.kmtn_trgt_fname = f'matched_targets_{self.field}.csv'
@@ -66,6 +68,16 @@ class CheckFiles :
             ready2run = False
             self.missing_files.append(gaia_cat_fname)
 
+        if self.field == 'N7793' :
+            self.check_list_fname = f'check_list_{self.field}_{self.year}.txt'
+            check_list_fpath = os.path.join(DATFDIRC, self.check_list_fname)
+            if not os.path.isfile(check_list_fpath) :
+                ready2run = False
+                self.missing_files.append(self.check_list_fname)
+        else :
+            self.check_list_fname = 'placeholder'
+
+
         self.ready = ready2run
 
     
@@ -79,6 +91,24 @@ class CheckFiles :
 
         if self.kmtn_trgt_fname in self.missing_files :
             kmtn_refcat.kmtn_refcat_gen(self.INPUTVAR)
+
+        if (self.field == 'N7793') & (self.check_list_fname in self.missing_files) :
+            check_list_fname_old = 'check_list.txt'
+            check_list_fpath_old = os.path.join(BKUPDIRC, f'{self.field}_{self.year}', check_list_fname_old)
+            check_list_fpath_old2new = os.path.join(DATFDIRC, check_list_fname_old)
+            check_list_fpath_new = os.path.join(DATFDIRC, self.check_list_fname)
+            copy(check_list_fpath_old, check_list_fpath_old2new)
+            move(check_list_fpath_old2new, check_list_fpath_new)
+
+        if self.jdlist_fname in self.missing_files :
+            jdlist_fname_old = 'JD.list'
+            jdlist_fpath_old = os.path.join(BKUPDIRC, f'{self.field}_{self.year}', jdlist_fname_old)
+            jdlist_fpath_old2new = os.path.join(DATFDIRC, jdlist_fname_old)
+            jdlist_fpath_new = os.path.join(DATFDIRC, self.jdlist_fname)
+            copy(jdlist_fpath_old, jdlist_fpath_old2new)
+            move(jdlist_fpath_old2new, jdlist_fpath_new)
+
+
 
         #starcand.starcat_generator([self.field, self.kmtn_trgt_fname])
         starcand.starcat_generator(self.INPUTVAR)

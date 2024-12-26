@@ -48,11 +48,8 @@ class ReadFiles :
         '''
         gaia_cat_fname = f'gaia_{self.field}.csv'
         
-        if gaia_cat_fname in os.listdir(DATFDIRC) :
-            gaia_cat_path = os.path.join(DATFDIRC, gaia_cat_fname)
-            gaia_cat = ascii.read(gaia_cat_path)
+        if gaia_cat_fname not in os.listdir(DATFDIRC) :
 
-        else : 
             print(f'{gaia_cat_fname} not in local directory. Downloading from Vizier ...')
             Vizier.ROW_LIMIT = -1
             
@@ -70,6 +67,8 @@ class ReadFiles :
             output_fpath = os.path.join(DATFDIRC, gaia_cat_fname)
             ascii.write(gaia_cat, output_fpath, overwrite=True)
 
+        gaia_cat_path = os.path.join(DATFDIRC, gaia_cat_fname)
+        gaia_cat = ascii.read(gaia_cat_path)
     
         gaia_cat_cut = gaia_cat[np.where(
             (-0.5 < gaia_cat['BP-RP']) & (gaia_cat['BP-RP'] < 2.75)
@@ -85,11 +84,8 @@ class ReadFiles :
         '''
         aps_cat_fname = f'apass_dr10_{self.field}.csv'
 
-        if aps_cat_fname in os.listdir(DATFDIRC) : 
-            aps_cat_path = os.path.join(DATFDIRC, f'apass_dr10_{self.field}.csv')
-            aps_cat = ascii.read(aps_cat_path)
+        if aps_cat_fname not in os.listdir(DATFDIRC) : 
 
-        else :
             print(f'{aps_cat_fname} not in local directory. Downloading from Vizier ...')
             Vizier.ROW_LIMIT = -1
             
@@ -106,6 +102,9 @@ class ReadFiles :
 
             output_fpath = os.path.join(DATFDIRC, aps_cat_fname)
             ascii.write(aps_cat, output_fpath, overwrite=True)
+
+        aps_cat_path = os.path.join(DATFDIRC, f'apass_dr10_{self.field}.csv')
+        aps_cat = ascii.read(aps_cat_path)
     
         aps_cat_cln = aps_cat[(~aps_cat['Bmag'].mask) & (~aps_cat['Vmag'].mask)]
     

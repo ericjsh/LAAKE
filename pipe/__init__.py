@@ -2,9 +2,10 @@
 #from pipe.dataprocess_config import *
 
 #import os
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 __all__ = [
+    "agn_finder",
     "ampmap",
     "astrom_check",
     "dataprocess_config",

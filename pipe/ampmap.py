@@ -21,6 +21,13 @@ def run(INPUTVAR: list) -> None :
 
     head_ls = [i for i in os.listdir(datadir) if i.endswith('.head')]
 
+    field, year, tel, filt = INPUTVAR
+    if field == 'N7793' :
+        check_list_fname = f'check_list_{field}_{year}.txt'
+        check_list_fpath = os.path.join(DATFDIRC, check_list_fname)
+        check_list_colnames = ['filename', 'site', 'filter', 'exptime', 'RA', 'DEC', 'timestamp']
+        check_list = ascii.read(check_list_fpath, names=check_list_colnames)
+
     for head_fname in head_ls : 
         #head_fname = head_ls[0]
         head_fpath = os.path.join(datadir, head_fname)
@@ -46,7 +53,17 @@ def run(INPUTVAR: list) -> None :
 
         os.chdir(f'{working_dir}')
 
-        os.system(f'swarp {pchip_fname} -c kmtnet.swarp')
+        if field == 'N7793' :
+            check_fname = '.'.join(head_fname.split('cbfto')[1].split('.')[0:3]) + '.fits'
+            check_list_trgt = check_list[np.where(
+                (check_list['site'] == tel) &
+                (check_list['filter'] == filt) &
+                (check_list['filename'] == check_fname)
+            )][0]
+            swarp_center_param = f"{check_list_trgt['RA']},{check_list_trgt['DEC']}"
+            os.system(f'swarp {pchip_fname} -c kmtnet_n7793.swarp')
+        else :
+            os.system(f'swarp {pchip_fname} -c kmtnet.swarp')
         os.system('rm *.resamp.weight.fits')
 
         os.system('fpack -D -Y -v *.resamp.fits')
@@ -62,3 +79,5 @@ def run(INPUTVAR: list) -> None :
         os.system(f'rm {head_fname}')
 
         os.chdir(ROOTPATH)
+
+

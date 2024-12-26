@@ -2,12 +2,32 @@ import os
 import sys
 import argparse
 from shutil import copy, move
+import time
 
+import pipe.agn_finder
 from pipe.dataprocess_config import *
 from pipe import *
 import pipe
 
+def laake_logger(INPUTVAR, process) :
+    field, year, tel, band = INPUTVAR
+
+    logger_fname = "laake_logger.txt"
+
+    if not os.path.isfile(logger_fname) : 
+        with open(logger_fname, "w") as f :
+            f.write("Timestamp            Field     Year      Band      Telescope LAAKE ver Process         ")
+            f.write('\n')
+
+    with open("laake_logger.txt", "a") as f :
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+        f.write(f'{timestamp}  {field:<9} {year}      {band}         {tel:<9} {pipe.__version__:<9} {process}')
+        f.write('\n')
+
+
 def initialize_laake(INPUTVAR) :
+
+    laake_logger(INPUTVAR, 'Initializing LAAKE')
 
     # Move external headers and science images to local machine
     data_dirs = pipe.process_tools.find_directories(INPUTVAR)
@@ -43,27 +63,40 @@ def initialize_laake(INPUTVAR) :
         copy(jdlist_fpath_old, jdlist_fpath_old2new)
         move(jdlist_fpath_old2new, jdlist_fpath_new)
 
+    #TODO: depreciate line 53-64. This is moved to file_checker.py (2024-11-06, dev.JSH)
+
 
 def execute_laake(INPUTVAR) :
 
+    laake_logger(INPUTVAR, 'laake.photometry')
     pipe.photometry.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.file_checker')
     pipe.file_checker.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.starcand.starcat_generator')
     pipe.starcand.starcat_generator(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.astrom_check')
     pipe.astrom_check.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.ampmap')
     pipe.ampmap.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.dist_measure')
     pipe.dist_measure.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.delmag_calculator')
     pipe.delmag_calculator.run(INPUTVAR)
 
+    laake_logger(INPUTVAR, 'laake.synthesize')
     pipe.synthesize.run(INPUTVAR)
 
 
 def finalize_laake(INPUTVAR) :
+
+    laake_logger(INPUTVAR, 'Finalizing LAAKE')
+
     data_dirs_local = pipe.process_tools.find_directories(INPUTVAR)
     data_dirs_backup = pipe.process_tools.find_directories_backup(INPUTVAR)
 
@@ -115,6 +148,7 @@ def laake_pipeline(INPUTVAR) :
     initialize_laake(INPUTVAR)
     execute_laake(INPUTVAR)
     finalize_laake(INPUTVAR)
+    laake_logger(INPUTVAR, 'Complete')
 
 if __name__ == "__main__" :
 
@@ -124,6 +158,8 @@ if __name__ == "__main__" :
     command_group.add_argument('-v', '--version', action='store_true', help='check LAAKE version')
     command_group.add_argument('-e', '--emblem', action='store_true', help='print LAAKE banner')
     command_group.add_argument('-g', '--gui', action='store_true', help='open light curve GUI')
+    command_group.add_argument('-u', '--update', action='store_true', help='update light curves')
+    command_group.add_argument('-q', '--queue', action='store_true', help='run data processing pipeline from queue')
     command_group.add_argument('-r', '--run', action='store_true', help='run data processing pipeline')
 
     required = parser.add_argument_group('required arguments for -r, --run')
@@ -133,8 +169,6 @@ if __name__ == "__main__" :
     required.add_argument('-t', '--tel', action='append', type=str, help='input telescope name')
 
     args = parser.parse_args()
-    #print(args.__dict__)
-    #print(len(args.__dict__))
 
     if args.emblem :
         print(laake_emblem())
@@ -147,6 +181,46 @@ if __name__ == "__main__" :
     if args.version :
         print(pipe.__version__)
         sys.exit(0)
+
+    if args.update :
+        if (args.tel==None) | (args.field==None) :
+            raise ValueError("Some parameters are missing")
+
+        if args.tel[0] not in ['CTIO', 'SSO', 'SAAO'] :
+            raise ValueError(f"{args.tel[0]} is not a valid telescope name")
+        
+        inputvar = [args.field[0], '2016', args.tel[0], 'B']
+        print(f'Generating AGN light curves for {args.field[0]} {args.tel[0]}')
+        pipe.agn_finder.run(inputvar)
+        print(f'Complete')
+        sys.exit(0)
+
+    if args.queue :
+
+        queue_fname = "laake_pipe_queue.txt"
+
+        if not os.path.isfile(queue_fname) :
+            with open(queue_fname, 'w') as f :
+                f.write("Field Year Telescope Band")
+                f.write("\n")
+
+        while True :
+
+            with open(queue_fname, "r+") as f :
+                lines = f.readlines()
+                if len(lines) > 1 :
+                    queue = lines[1]
+                    f.seek(0)
+                    for line in lines :
+                        if line != queue :
+                            f.write(line)
+                    f.truncate()
+                else :
+                    print('end')
+                    break
+
+            inputvar = queue.split('\n')[:-1][0].split(' ')
+            laake_pipeline(inputvar)
 
     if args.run :
 
@@ -163,12 +237,10 @@ if __name__ == "__main__" :
             raise ValueError(f"{args.tel[0]} is not a valid telescope name")
 
         inputvar = [args.field[0], args.year[0], args.tel[0], args.band[0]]
-        #INPUTVAR = sys.argv[1:]
         #INPUTVAR = ['N55', '2017', 'CTIO', 'V']
         laake_pipeline(inputvar)
 
     else :
-        #parser.print_help()
         print(laake_emblem() + '''
         Written by Sungho JUNG <eric2912@snu.ac.kr>
             

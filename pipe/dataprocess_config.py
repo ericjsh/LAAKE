@@ -28,7 +28,7 @@ AMPMDIRC = os.path.join(DATAPATH, 'ampmap')
 CTLGDIRC = os.path.join(DATAPATH, 'dist_cat')
 DMAGDIRC = os.path.join(DATAPATH, 'delmag_cat')
 
-BKUPDIRC = '/Volumes/pKAMP'
+BKUPDIRC = '/Volumes/pKAMP2'
 CORENUM = 10
 
 import json

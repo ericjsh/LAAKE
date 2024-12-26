@@ -16,6 +16,7 @@ import pickle
 
 #from tqdm.notebook import tqdm
 from tqdm import tqdm
+tqdm_bar_fmt = '{desc:<5.5}{percentage:3.0f}%|{bar:10}{r_bar}'
 
 from multiprocessing import Pool
 
@@ -24,6 +25,8 @@ warnings.filterwarnings('ignore')
 
 import sys
 sys.setrecursionlimit(10**7)
+
+from multiprocessing import Pool
 
 
 from pipe import process_tools
@@ -75,116 +78,125 @@ def run(INPUTVAR: list) -> None :
     #INPUTVAR = ['N55', '2018', 'CTIO', 'V']
     files_dict = process_tools.find_files(INPUTVAR)
     data_dirs = process_tools.find_directories(INPUTVAR)
+    cat_fnames = files_dict['initial']
+    mp_var = [(cat_fname, files_dict, data_dirs) for cat_fname in cat_fnames]
 
-    for cat_id in range(len(files_dict['initial'])) :
-        cat_fname = files_dict['initial'][cat_id]
-        chip_id = int(cat_fname.split('.resamp.cat')[0].split('.new.')[1])
-        print(f'Running for {cat_fname} ...')
-        
-        fid_chip = cat_fname.split('.resamp.cat')[0]
-        fid = fid_chip.split('new')[0]
-
-        seg_fnames = [i for i in files_dict['seg'] if i.startswith(fid_chip)]
-        ampmap_fnames = [i for i in files_dict['ampmap'] if i.startswith(fid_chip)]
-
-        if (len(seg_fnames) == 1) and (len(ampmap_fnames) == 1) :
-
-            seg_fname = seg_fnames[0]
-            ampmap_fname = ampmap_fnames[0]
-
-            cat_fpath = os.path.join(data_dirs['initial'], cat_fname)
-            seg_fpath = os.path.join(data_dirs['image'], seg_fname)
-            ampmap_fpath = os.path.join(data_dirs['ampmap'], ampmap_fname)
-
-            #if isfile_all([cat_fpath, seg_fpath, ampmap_fpath]) : 
-
-            cat = ascii.read(cat_fpath)
-
-            if len(cat) > 1 :
-                new_stats_keys = [
-                    'ampnum',       #amp position of object
-                    'POSA',         #Percentage Of (object placed at) Same Amp
-                    'DTAE',         #Distance To Amp Edge
-                    'grpnum',       #number of semi-groups within the object
-                    'AAPG'          #Average Area Per Group
-                ]
-
-                for key in new_stats_keys :
-                    cat[key] = np.array([0.])*len(cat)
+    with Pool(CORENUM) as p :
+        for output in tqdm(p.imap(worker, mp_var), total=len(mp_var), bar_format=tqdm_bar_fmt) :
+            if type(output) != NoneType :
+                print('error!!!!')
 
 
-                seg_fitsfile = fits.open(seg_fpath)
-                seg_img_data = seg_fitsfile[1].data
+def worker(mp_var) :
+    cat_fname, files_dict, data_dirs = mp_var
+    #cat_fname = files_dict['initial'][cat_id]
+    chip_id = int(cat_fname.split('.resamp.cat')[0].split('.new.')[1])
+    print(f'Running for {cat_fname} ...')
+    
+    fid_chip = cat_fname.split('.resamp.cat')[0]
+    fid = fid_chip.split('new')[0]
 
-                X_max_data = len(seg_img_data[0])
-                Y_max_data = len(seg_img_data)
+    seg_fnames = [i for i in files_dict['seg'] if i.startswith(fid_chip)]
+    ampmap_fnames = [i for i in files_dict['ampmap'] if i.startswith(fid_chip)]
 
-                ampmap_fitsfile = fits.open(ampmap_fpath)
-                ampmap_img_data = ampmap_fitsfile[1].data
-                ampmap_img_data = np.around(ampmap_img_data).astype(int)
+    if (len(seg_fnames) == 1) and (len(ampmap_fnames) == 1) :
 
-                cat_cut = cat[np.where(
-                    (cat['MAG_AUTO'] < 50) & 
-                    (cat['FLAGS'] < 10)
-                )]
+        seg_fname = seg_fnames[0]
+        ampmap_fname = ampmap_fnames[0]
 
+        cat_fpath = os.path.join(data_dirs['initial'], cat_fname)
+        seg_fpath = os.path.join(data_dirs['image'], seg_fname)
+        ampmap_fpath = os.path.join(data_dirs['ampmap'], ampmap_fname)
 
-                #cat_obj = cat_cut[np.where(cat_cut['NUMBER'] == 7221)]
-                #objnum = cat_obj['NUMBER']
+        #if isfile_all([cat_fpath, seg_fpath, ampmap_fpath]) : 
 
-                for n in range(len(cat_cut)) : 
-                    #print(n)
-                    #n=0
-                    cat_obj = cat_cut[n]
+        cat = ascii.read(cat_fpath)
 
-                    X = int(cat_obj['X_IMAGE'])
-                    Y = int(cat_obj['Y_IMAGE'])
+        if len(cat) > 1 :
+            new_stats_keys = [
+                'ampnum',       #amp position of object
+                'POSA',         #Percentage Of (object placed at) Same Amp
+                'DTAE',         #Distance To Amp Edge
+                'grpnum',       #number of semi-groups within the object
+                'AAPG'          #Average Area Per Group
+            ]
 
-                    ampnum = ampmap_img_data[Y,X]
-
-                    sect_dim = 100
-
-                    Y_min = max(Y-sect_dim, 0)
-                    Y_max = min(Y+sect_dim, Y_max_data)
-                    X_min = max(X-sect_dim, 0)
-                    X_max = min(X+sect_dim, X_max_data)
-
-                    seg_sect = (seg_img_data[Y_min:Y_max, X_min:X_max] == cat_obj['NUMBER'])
-                    ampmap_sect = (ampmap_img_data[Y_min:Y_max, X_min:X_max] == ampnum)
+            for key in new_stats_keys :
+                cat[key] = np.array([0.])*len(cat)
 
 
-                    if Y_min == 0 :
-                        pad = np.ones((sect_dim-Y, len(seg_sect[0])))*(-1)
-                        seg_sect = np.block([[pad], [seg_sect]])
-                        ampmap_sect = np.block([[pad], [ampmap_sect]])
+            seg_fitsfile = fits.open(seg_fpath)
+            seg_img_data = seg_fitsfile[1].data
 
-                    if Y_max == len(seg_img_data) :
-                        pad = np.ones((Y - Y_max_data + sect_dim, len(seg_sect[0])))*(-1)
-                        seg_sect = np.block([[seg_sect], [pad]])
-                        ampmap_sect = np.block([[ampmap_sect], [pad]])
+            X_max_data = len(seg_img_data[0])
+            Y_max_data = len(seg_img_data)
 
-                    if X_min == 0 :
-                        pad = np.ones((sect_dim*2, sect_dim-X)) * (-1)
-                        seg_sect = np.block([pad, seg_sect])
-                        ampmap_sect = np.block([pad, ampmap_sect])
+            ampmap_fitsfile = fits.open(ampmap_fpath)
+            ampmap_img_data = ampmap_fitsfile[1].data
+            ampmap_img_data = np.around(ampmap_img_data).astype(int)
 
-                    if X_max == X_max_data :
-                        pad = np.ones((sect_dim*2, X - X_max_data + sect_dim)) * (-1)
-                        seg_sect = np.block([seg_sect, pad])
-                        ampmap_sect = np.block([ampmap_sect, pad])
+            cat_cut = cat[np.where(
+                (cat['MAG_AUTO'] < 50) & 
+                (cat['FLAGS'] < 10)
+            )]
 
-                    same_amp = ampmap_sect * seg_sect
-                    same_amp_per = (same_amp == 1).sum() / (seg_sect == 1).sum() * 100
 
-                    ampmap_dist = (ampmap_sect == 0).sum() / 200**2
+            #cat_obj = cat_cut[np.where(cat_cut['NUMBER'] == 7221)]
+            #objnum = cat_obj['NUMBER']
 
-                    if (cat_obj['MAG_AUTO'] > 50) | (cat_obj['FLAGS'] > 10) :
-                        grpnum = 99
-                        avg_area = 0
-                    else :
-                        #grpnum = grp_nums(seg_sect)
-                        grpnum=1
-                        avg_area = (seg_sect==1).sum() / grpnum
+            for n in range(len(cat_cut)) : 
+                #print(n)
+                #n=0
+                cat_obj = cat_cut[n]
+
+                X = int(cat_obj['X_IMAGE'])
+                Y = int(cat_obj['Y_IMAGE'])
+
+
+                ampnum = ampmap_img_data[Y,X]
+
+                sect_dim = 100
+
+                Y_min = max(Y-sect_dim, 0)
+                Y_max = min(Y+sect_dim, Y_max_data)
+                X_min = max(X-sect_dim, 0)
+                X_max = min(X+sect_dim, X_max_data)
+
+                seg_sect = (seg_img_data[Y_min:Y_max, X_min:X_max] == cat_obj['NUMBER'])
+                ampmap_sect = (ampmap_img_data[Y_min:Y_max, X_min:X_max] == ampnum)
+            
+                if Y_min == 0 :
+                    pad = np.ones((sect_dim-Y, len(seg_sect[0])))*(-1)
+                    seg_sect = np.block([[pad], [seg_sect]])
+                    ampmap_sect = np.block([[pad], [ampmap_sect]])
+
+                if Y_max == len(seg_img_data) :
+                    pad = np.ones((Y - Y_max_data + sect_dim, len(seg_sect[0])))*(-1)
+                    seg_sect = np.block([[seg_sect], [pad]])
+                    ampmap_sect = np.block([[ampmap_sect], [pad]])
+
+                if X_min == 0 :
+                    pad = np.ones((sect_dim*2, sect_dim-X)) * (-1)
+                    seg_sect = np.block([pad, seg_sect])
+                    ampmap_sect = np.block([pad, ampmap_sect])
+
+                if X_max == X_max_data :
+                    pad = np.ones((sect_dim*2, X - X_max_data + sect_dim)) * (-1)
+                    seg_sect = np.block([seg_sect, pad])
+                    ampmap_sect = np.block([ampmap_sect, pad])
+
+                same_amp = ampmap_sect * seg_sect
+                same_amp_per = (same_amp == 1).sum() / (seg_sect == 1).sum() * 100
+
+                ampmap_dist = (ampmap_sect == 0).sum() / 200**2
+
+                if (cat_obj['MAG_AUTO'] > 50) | (cat_obj['FLAGS'] > 10) :
+                    grpnum = 99
+                    avg_area = 0
+                else :
+                    #grpnum = grp_nums(seg_sect)
+                    grpnum=1
+                    avg_area = (seg_sect==1).sum() / grpnum
 
                     cat_cut[n]['ampnum'] = int(round(ampnum)) + (chip_id - 1) * 8
                     cat_cut[n]['POSA'] = same_amp_per
@@ -192,21 +204,28 @@ def run(INPUTVAR: list) -> None :
                     cat_cut[n]['grpnum'] = grpnum
                     cat_cut[n]['AAPG'] = avg_area
 
-
-                cat_dist_cut = cat_cut[np.where(
-                    (cat_cut['DTAE'] == 0) &
-                    (cat_cut['ISOAREA_IMAGE'] > 8)
-                )]
-
-                datadir_new = data_dirs['dist']
-                os.makedirs(datadir_new, exist_ok=True)
-
-                cat_fpath_new = os.path.join(datadir_new, cat_fname)
-                ascii.write(cat_dist_cut, cat_fpath_new, overwrite=True)
-                
-                N_src = len(cat_dist_cut)
-                per_survived = round(N_src/len(cat_cut) * 100,2)
+                #except :
+                #    cat_cut[n]['ampnum'] = 99
+                #    cat_cut[n]['POSA'] = 99
+                #    cat_cut[n]['DTAE'] = 99
+                #    cat_cut[n]['grpnum'] = 99
+                #    cat_cut[n]['AAPG'] = 99
 
 
-                print(f'{per_survived}% ({N_src}) sources survived')
-                print(f'file saved at {cat_fpath_new}')
+            cat_dist_cut = cat_cut[np.where(
+                (cat_cut['DTAE'] == 0) &
+                (cat_cut['ISOAREA_IMAGE'] > 3)
+            )]
+
+            datadir_new = data_dirs['dist']
+            os.makedirs(datadir_new, exist_ok=True)
+
+            cat_fpath_new = os.path.join(datadir_new, cat_fname)
+            ascii.write(cat_dist_cut, cat_fpath_new, overwrite=True)
+            
+            N_src = len(cat_dist_cut)
+            per_survived = round(N_src/len(cat_cut) * 100,2)
+
+
+            print(f'{per_survived}% ({N_src}) sources survived')
+            print(f'file saved at {cat_fpath_new}')
