@@ -208,7 +208,7 @@ if __name__ == "__main__" :
 
             with open(queue_fname, "r+") as f :
                 lines = f.readlines()
-                if len(lines) > 1 :
+                if len(lines) > 2 :
                     queue = lines[1]
                     f.seek(0)
                     for line in lines :

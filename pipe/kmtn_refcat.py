@@ -54,6 +54,7 @@ def kmtn_refcat_gen(INPUTVAR) :
             mef_idx += 1
 
     chip_fpaths = [os.path.join(datadir, chipname) for chipname in chip_names]
+    print(chip_fpaths)
     kmtn_refcat_raw = vstack([ascii.read(chipfpath) for chipfpath in chip_fpaths])
 
     trgt_radec = SkyCoord(

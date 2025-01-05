@@ -297,6 +297,10 @@ class DelmagCalculator :
         OUTPUT  : result - catalogue with delmag and delmagerr.
         '''
         ls_result = []
+        if self.filt == 'B' : 
+            std_lim = 0.06
+        else :
+            std_lim = 0.03
 
         for ampnum in range(0,32) : 
             mcat_amp = mcat[np.where(mcat['ampnum'] == ampnum)]
@@ -319,7 +323,7 @@ class DelmagCalculator :
                     dmag_std_cut = np.std(mcat_cut['offset'])
                     seeing_mn_cut = np.median(mcat_cut['FWHM_IMAGE'])
 
-                    if dmag_std_cut < 0.03 :
+                    if dmag_std_cut < std_lim :
                 
                         mcat_cut['delmag'] = dmag_mn_cut
                         mcat_cut['dmag_err'] = dmag_std_cut
@@ -329,7 +333,7 @@ class DelmagCalculator :
                         ls_result.append(mcat_cut)
         
                 else : 
-                    if dmag_std < 0.03 : 
+                    if dmag_std < std_lim : 
                         mcat_amp['delmag'] = dmag_mn
                         mcat_amp['dmag_err'] = dmag_std
                         mcat_amp['ampnum'] = ampnum
@@ -473,10 +477,15 @@ class DelmagCalculator :
         #sID_ls = list(set(result['sID']))
 
         #sID_i = sID_ls[i]
-        lc = result[np.where(
-            (result['sID'] == sID_i) &
-            (result['CLASS_STAR'] > 0.8)
-        )]
+        if self.filt == 'B' :
+            lc = result[np.where(
+                (result['sID'] == sID_i)
+            )]
+        else :
+            lc = result[np.where(
+                (result['sID'] == sID_i) &
+                (result['CLASS_STAR'] > 0.8)
+            )]
 
         if len(lc) > 30 :
             mjd_med = np.median(lc['mjd'])
