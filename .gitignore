@@ -4,12 +4,19 @@ __pycache__/
 # data
 # data/*
 # data/image/*
+
+workspace.ipynb
+.ipynb_checkpoints/
+
 datafile/*
 
 !datafile/sex_files/
 !datafile/swarp_files/
 !datafile/sex_files/*
 !datafile/swarp_files/*
+
+temp/
+double_source.ipynb
 
 # MacOS
 .DS_Store

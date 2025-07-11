@@ -19,12 +19,14 @@ from pipe import process_tools
 
 #INPUTVAR = ['N59', '2016', 'CTIO', 'B']
 
-def kmtn_refcat_gen(INPUTVAR) :
+def kmtn_refcat_gen(INPUTVAR, vanilla=False) :
     field, *_ = INPUTVAR
 
-    data_dirs = process_tools.find_directories(INPUTVAR)
-
-    datadir = data_dirs['initial']
+    if vanilla :
+        datadir = '/Users/kamp/Desktop/KAMP/LAAKE/vanilla_workspace'
+    else :
+        data_dirs = process_tools.find_directories(INPUTVAR)
+        datadir = data_dirs['initial']
 
     mef_fsizes = [[f, os.path.getsize(os.path.join(datadir, f)) /1024**2] for f in os.listdir(datadir)]
 
@@ -73,7 +75,7 @@ def kmtn_refcat_gen(INPUTVAR) :
             ra=cent_ra, dec=cent_dec, 
             unit=(u.deg, u.deg), frame='icrs'
         ),
-        radius=2*u.deg,
+        radius=1.5*u.deg,
         catalog=['Gaia'],
     )
 

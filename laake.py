@@ -50,21 +50,6 @@ def initialize_laake(INPUTVAR) :
         extension=data_config['ampmap']['bp_extensions'][0]
     )
 
-    # Move JD.list to local machine
-    field, year, *_ = INPUTVAR
-    jdlist_fname_old = 'JD.list'
-    fy_id = f'{field}_{year}'
-    jdlist_fname_new = f'JD_{fy_id}.list'
-    jdlist_fpath_new = os.path.join(DATFDIRC, jdlist_fname_new)
-
-    if not os.path.isfile(jdlist_fpath_new) :
-        jdlist_fpath_old = os.path.join(BKUPDIRC, fy_id, jdlist_fname_old)
-        jdlist_fpath_old2new = os.path.join(DATFDIRC, jdlist_fname_old)
-        copy(jdlist_fpath_old, jdlist_fpath_old2new)
-        move(jdlist_fpath_old2new, jdlist_fpath_new)
-
-    #TODO: depreciate line 53-64. This is moved to file_checker.py (2024-11-06, dev.JSH)
-
 
 def execute_laake(INPUTVAR) :
 

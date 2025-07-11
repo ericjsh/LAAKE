@@ -1,6 +1,4 @@
 import os
-
-#from types import NoneType
 NoneType = type(None)
 
 from astropy.table import Table, vstack
@@ -9,14 +7,14 @@ from astropy.stats import SigmaClip, sigma_clip
 import astropy.units as u
 import astropy.coordinates as coord
 from astropy.coordinates import SkyCoord, Angle, match_coordinates_sky
+
 import numpy as np
+import matplotlib.pyplot as plt
 
 from scipy.interpolate import interp1d
 from statsmodels.tsa.stattools import adfuller
 
 import pickle
-
-#from tqdm.notebook import tqdm
 from tqdm import tqdm
 
 from multiprocessing import Pool
@@ -39,7 +37,6 @@ class DelmagCalculator :
         self.field = field
         self.year = year
         self.filename = filename
-        #self.chipnum = self.filename.split('.')[4]
         self.datadirc = os.path.join(CTLGDIRC, f'{field}_{year}', tel, filt)
         self.IDcut = 'none'
 
@@ -187,14 +184,12 @@ class DelmagCalculator :
         INPUT   : filename - KMTN data name ; refcat - APASS reference catalogue
         OUTPUT  : mcat_cut - Matched catalogue
         '''
-        #filename = self.filename
         
         sep_lim = 2. * u.arcsec
     
         filepath = os.path.join(self.datadirc, self.filename)
         aps_mag_name, aps_emag_name = self.aps_mag_names()
         
-        #mjd = find_mjd(filename)
         data = ascii.read(filepath)
         
         data_coord = SkyCoord(
@@ -298,9 +293,9 @@ class DelmagCalculator :
         '''
         ls_result = []
         if self.filt == 'B' : 
-            std_lim = 0.06
+            std_lim = 99999
         else :
-            std_lim = 0.03
+            std_lim = 99999
 
         for ampnum in range(0,32) : 
             mcat_amp = mcat[np.where(mcat['ampnum'] == ampnum)]
@@ -389,8 +384,6 @@ class DelmagCalculator :
         
         result = self.result_init()
     
-        #CORENUM = 10
-    
         tqdm_bar_fmt = '{desc:<5.5}{percentage:3.0f}%|{bar:10}{r_bar}'
 
         ls_result = []
@@ -399,12 +392,6 @@ class DelmagCalculator :
             for output in tqdm(p.imap(self.worker, mp_var), total=len(filenames), bar_format=tqdm_bar_fmt) :
                 if type(output) != NoneType :
                     ls_result.append(output)
-
-        '''for i in tqdm(range(len(mp_var))) :
-            output = self.worker(mp_var[i])
-            if type(output) != NoneType :
-                for output_i in output :
-                    result.add_row(output_i)'''
     
         result = vstack(ls_result)
 
@@ -488,53 +475,55 @@ class DelmagCalculator :
             )]
 
         if len(lc) > 30 :
-            mjd_med = np.median(lc['mjd'])
-            mjd_std = np.std(lc['mjd'])
+            #mjd_med = np.median(lc['mjd'])
+            #mjd_std = np.std(lc['mjd'])
             
-            lc_mjd_cut = lc[np.where(
-                (mjd_med-3*mjd_std < lc['mjd']) & (lc['mjd'] < mjd_med + 3*mjd_std)
-            )]
+            #lc_mjd_cut = lc[np.where(
+            #    (mjd_med-3*mjd_std < lc['mjd']) & (lc['mjd'] < mjd_med + 3*mjd_std)
+            #)]
 
-            if len(lc_mjd_cut) > 20 :
+            #if len(lc_mjd_cut) > 20 :
             
-                lc_mjd_cut.sort('mjd')
-                
-                xs = lc_mjd_cut['mjd']
-                ys = lc_mjd_cut['mag_inst']
-                
-                xmin = np.min(lc_mjd_cut['mjd'])
-                xmax = np.max(lc_mjd_cut['mjd'])
-                
-                interp_func = interp1d(xs, ys)
-                
-                xnew = np.arange(xmin, xmax, 0.1)
-                newarr = interp_func(xnew)
-                
-                result = adfuller(newarr, autolag="AIC")
-                pvalue = result[1]
-                STD = np.std(ys)
-                MED = np.median(ys)
+            lc.sort('mjd')
+            
+            xs = lc['mjd']
+            ys = lc['mag_inst']
+            
+            xmin = np.min(lc['mjd'])
+            xmax = np.max(lc['mjd'])
+            
+            interp_func = interp1d(xs, ys)
+            
+            xnew = np.arange(xmin, xmax, 0.1)
+            newarr = interp_func(xnew)
+            
+            result = adfuller(newarr, autolag="AIC")
+            pvalue = result[1]
+            #STD = np.std(ys)
+            MED = np.median(ys)
+            square_sum = np.sum((ys - MED)**2)
+            RMS = np.sqrt(square_sum/len(lc))
 
-                if self.filt == 'B' :
-                    if (STD < MED*0.01) :
-                        star_bool = sID_i
-                    else :
-                        star_bool = False
+            if self.filt == 'B' :
+                if (RMS < MED*0.01) :
+                    star_bool = sID_i
                 else :
-                    if (STD < MED*0.003) :
-                        star_bool = sID_i
-                    else :
-                        star_bool = False
-
+                    star_bool = False
             else :
-                star_bool = False
+                if (RMS < MED*0.003) :
+                    star_bool = sID_i
+                else :
+                    star_bool = False
+
+            #else :
+            #    star_bool = False
         else :
             star_bool = False
         
         return star_bool
 
 
-    def reject_star(self, result) :
+    def reject_star1(self, result) :
 
         sID_ls = list(set(result['sID']))
         
@@ -549,6 +538,198 @@ class DelmagCalculator :
                     sID_good.append(output)
 
         return sID_good, False
+    
+
+    def reject_star(self, delmag_p1, plot_bool=False) :
+
+        # Calculate (epoch, med_mag, rms, mean_err, fvar, adf_pavl) for star candidates
+
+        result = Table(dtype=np.dtype([
+            ('sID', str),
+            ('epoch', int),
+            ('MED', float),
+            ('RMS', float),
+            ('mean_err', float),
+            ('fvar', float),
+            ('adf_pval', float)
+        ]))
+
+        sID_ls = list(set(delmag_p1['sID']))
+        N_epoch = len(set(delmag_p1['mjd']))
+
+        tqdm_bar_fmt = '{desc:<5.5}{percentage:3.0f}%|{bar:10}{r_bar}'
+
+        for idx in tqdm(range(len(sID_ls)), total=len(sID_ls), bar_format=tqdm_bar_fmt) :
+            sID_i = sID_ls[idx]
+
+            lc = delmag_p1[np.where(
+                (delmag_p1['sID'] == sID_i)
+            )]
+            lc.sort('mjd')
+
+
+            if len(lc) > 0.1 * N_epoch :
+                MED = np.median(lc['mag_inst'])
+                sq_sum = np.sum((MED - lc['mag_inst'])**2)
+                RMS = np.sqrt(sq_sum/len(lc))
+                S2 = np.std(lc['mag_inst'])**2
+                sig2 = np.median(lc['magerr_inst']**2)
+
+                if S2 > sig2 :
+                    fvar = np.sqrt( (S2-sig2 )/(MED) )
+                else :
+                    fvar = 0
+
+                xmin = np.min(lc['mjd'])
+                xmax = np.max(lc['mjd'])
+                interp_func = interp1d(lc['mjd'], lc['mag_inst'])
+                xnew = np.arange(xmin, xmax, 0.1)
+                newarr = interp_func(xnew)
+                adf_result = adfuller(newarr, autolag="AIC")
+                adf_pval = adf_result[1]
+
+                row = np.array([sID_i, len(lc), MED, RMS, np.sqrt(sig2), fvar, adf_pval])
+                result.add_row(row)
+
+        # Clean star candidate table based on fvar and adf_pval
+
+        result_cln = result[np.where(
+            (result['fvar'] <= 0.01) &
+            (result['adf_pval'] < 0.2)
+        )]
+
+        len(result_cln)
+
+
+        src_num_ep = []
+        epochs = np.array(list(range(np.max(result_cln['epoch'])+10)))
+        for ep in epochs :
+            result_cut = result_cln[np.where(result_cln['epoch'] >= ep)]
+            src_num_ep.append(len(result_cut))
+            
+        src_num_ep = np.array(src_num_ep)
+            
+        src_num_rms = []
+        rms_ls = np.linspace(0, np.max(result_cln['RMS'])+0.01, 10**2)
+        for rms in rms_ls :
+            result_cut = result_cln[np.where(result_cln['RMS'] <= rms)]
+            src_num_rms.append(len(result_cut))
+        src_num_rms = np.array(src_num_rms)
+            
+        # Find optimal point for (epoch_cut, star_num)
+
+        # Constraints
+        min_epochs = N_epoch*0.1
+        min_stars = 320
+
+        # Mask for allowed region
+        mask = (epochs >= min_epochs) & (src_num_ep >= min_stars)
+        allowed_epochs = epochs[mask]
+        allowed_stars = src_num_ep[mask]
+
+        # Normalize
+        norm_epochs = (allowed_epochs - min_epochs) / (max(allowed_epochs) - min_epochs)
+        norm_stars = (allowed_stars - min_stars) / (max(allowed_stars) - min_stars)
+
+        # Weights: balance epochs and stars
+        alpha = 0.5  # weight for epochs
+        beta = 0.5   # weight for number of stars
+
+        scores = alpha * norm_epochs + beta * norm_stars
+
+        # Find optimal point
+        best_index = np.argmax(scores)
+        optimal_epoch = allowed_epochs[best_index]
+        optimal_epoch = min(optimal_epoch, 30)
+        optimal_star_count = allowed_stars[best_index]
+        optimal_score = scores[best_index]
+
+        # Find RMS cut for the corresponding star_num
+
+        ptr = np.min(epochs[np.where(epochs == optimal_epoch)])
+        rms_cut = rms_ls[np.max(np.where(src_num_rms <= src_num_ep[ptr]))]
+
+
+        result_stars = result_cln[np.where(
+            (result_cln['epoch'] >= optimal_epoch) &
+            (result_cln['RMS'] <= rms_cut)
+        )]
+        N_stars = len(result_stars)
+        standard_stars = delmag_p1[np.isin(delmag_p1['sID'], result_stars['sID'])]
+
+        print(f'Epoch cut = {optimal_epoch} days')
+        print(f'RMS cut   = {rms_cut:.3f} mag')
+        print(f'Star num  = {N_stars}')
+
+
+        sID_good = list(result_stars['sID'])
+
+        if plot_bool :
+            fig,ax = plt.subplots(1,4, figsize=(20,5))
+
+            _, bins, _ = ax[0].hist(result_cln['MED'], color='k')
+            ax[0].hist(result_stars['MED'], bins=bins, color='r')
+            ax[0].set_xlabel('flux [mag]')
+
+
+            _, bins, _ = ax[1].hist(result_cln['RMS'], color='k')
+            ax[1].hist(result_stars['RMS'], bins=bins, color='r')
+            ax[1].set_xlabel('RMS')
+
+            _, bins, _ = ax[2].hist(result_cln['mean_err'], color='k')
+            ax[2].hist(result_stars['mean_err'], bins=bins, color='r')
+            ax[2].set_xlabel(r'$\langle \sigma \rangle$')
+
+            _, bins, _ = ax[3].hist(result_cln['epoch'], color='k')
+            ax[3].hist(result_stars['epoch'], bins=bins, color='r')
+            ax[3].set_xlabel('N_epoch')
+
+            plt.show()
+
+            fig,ax = plt.subplots(1,3, figsize=(17,5))
+
+            ax[0].plot(epochs, src_num_ep, c='k', label='survival curve')
+
+            #minimal limits: 10 stars per amp (total of 320) + 0.1*N_epoch epochs per star
+
+            ax[0].axvline(int(0.1*N_epoch), c='r')
+            ax[0].fill_between(np.linspace(int(0.1*N_epoch),N_epoch,10), 320, color='r', alpha=0.3)
+            ax[0].fill_betweenx(np.linspace(0,np.max(src_num_ep)*1.1,10), int(0.1*N_epoch), color='r', alpha=0.3, label='forbidden')
+            ax[0].axhline(320, c='r')
+
+            ax[0].set_xlabel('Epoch cut')
+            ax[0].set_ylabel('Number of stars')
+
+            ax[0].set_xlim(0,N_epoch)
+            ax[0].set_ylim(0, np.max(src_num_ep)*1.1)
+
+            ax[0].legend()
+
+
+
+            ax[1].plot(allowed_epochs, allowed_stars, zorder=0, c='k', lw=1, ls=':')
+            sc = ax[1].scatter(allowed_epochs, allowed_stars, c=scores, zorder=1, cmap='inferno', edgecolor='k')
+            fig.colorbar(sc, ax=ax[1], label='score')
+
+            score_text = f'Pareto Front = ({optimal_epoch}, {optimal_star_count})'
+            ax[1].text(np.min(allowed_epochs),np.min(allowed_stars), score_text)
+
+            ax[1].axvline(optimal_epoch, zorder=0,c='k')
+            ax[1].axhline(optimal_star_count, zorder=0, c='k')
+
+            ax[1].set_xlabel('Epoch cut')
+
+
+            ax[2].plot(rms_ls, src_num_rms, c='k')
+            ax[2].axvline(rms_cut, c='b')
+            ax[2].axhline(optimal_star_count, c='b')
+            ax[2].set_xlabel('RMS cut')
+            rms_text = f'RMS cut = {rms_cut:.3f} mag'
+            ax[2].text(rms_cut*1.1, np.max(src_num_rms)*0.1, rms_text)
+
+            plt.show()
+
+        return sID_good
 
 
     def find_bad_epoch(self, delmag_p2) :
@@ -679,8 +860,8 @@ class DelmagCalculator :
         delmag_p1 = self.calc_delmag_all()
         #ascii.write(delmag_p1, 'delmag_p1.cat', overwrite=True)
         
-
-        sID_good, req_itr = self.reject_star(delmag_p1)
+        print('Selecting standar stars ... ')
+        sID_good = self.reject_star(delmag_p1)
         print(f'Number of stars that will be used for calculating delmag: {len(sID_good)}')
         self.IDcut = sID_good
         sID_arr = np.array(sID_good)

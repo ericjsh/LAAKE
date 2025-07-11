@@ -1,4 +1,7 @@
 import os
+import numpy as np
+from astropy.time import Time
+
 from pipe.dataprocess_config import *
 
 from pipe import process_tools
@@ -103,10 +106,14 @@ class CheckFiles :
         if self.jdlist_fname in self.missing_files :
             jdlist_fname_old = 'JD.list'
             jdlist_fpath_old = os.path.join(BKUPDIRC, f'{self.field}_{self.year}', jdlist_fname_old)
-            jdlist_fpath_old2new = os.path.join(DATFDIRC, jdlist_fname_old)
-            jdlist_fpath_new = os.path.join(DATFDIRC, self.jdlist_fname)
-            copy(jdlist_fpath_old, jdlist_fpath_old2new)
-            move(jdlist_fpath_old2new, jdlist_fpath_new)
+            if os.path.isfile(jdlist_fpath_old) :
+                jdlist_fpath_old2new = os.path.join(DATFDIRC, jdlist_fname_old)
+                jdlist_fpath_new = os.path.join(DATFDIRC, self.jdlist_fname)
+                copy(jdlist_fpath_old, jdlist_fpath_old2new)
+                move(jdlist_fpath_old2new, jdlist_fpath_new)
+            else :
+                self.calc_jd()
+
 
 
 
@@ -114,8 +121,27 @@ class CheckFiles :
         starcand.starcat_generator(self.INPUTVAR)
         print('Download complete!')
         
-        # TODO: print log into an external txt file rather than priting on console
+    def calc_jd(self) :
+        # ------------------ Calc. JD/MJD -------------------------------
+        print("### Make JD/MJD list ################################")
 
+        check_list_fpath = os.path.join(DATFDIRC, self.check_list_fname)
+        jdlist_fpath = os.path.join(DATFDIRC, self.jdlist_fname)
+
+        dtype2 = np.dtype([('file', 'U26'), ('exptime', 'int'), ('utc', 'U19')])
+        file, exptime, utc = np.loadtxt(check_list_fpath, usecols=[0, 3, 6], dtype=dtype2, unpack=True)
+
+        t = Time(utc, scale='utc', format='isot')
+        jd = t.jd + (exptime/2.)/3600./24.
+        mjd = t.mjd + (exptime/2.)/3600./24.
+
+        dtype3 = np.dtype([('var1', 'U26'), ('var2', float), ('var3', float)])
+        outdata = np.zeros(jd.size, dtype=dtype3)
+        outdata['var1'] = file
+        outdata['var2'] = jd
+        outdata['var3'] = mjd
+
+        np.savetxt(jdlist_fpath, outdata, delimiter='  ', fmt=['%26s', '%.9f', '%.11f'], header="file, mid-JD, mid-MJD")
 
     def count_file_nums(self) -> None :
         '''

@@ -38,6 +38,8 @@ def run(execute, src: str, dest: str, extension: str, head=None) -> None:
     print(len(files))
     n_workers = 100 + 5*(len(files) < 10)
     chunksize = round(len(files) / n_workers)
+    if chunksize == 0 :
+        chunksize += 1
     with ThreadPoolExecutor(n_workers) as exe:
         for i in range(0, len(files), chunksize):
             filenames = files[i:(i + chunksize)]
